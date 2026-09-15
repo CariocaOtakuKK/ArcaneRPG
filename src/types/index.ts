@@ -243,6 +243,23 @@ export interface VTTDrawing {
   points: VTTDrawingPoint[];
 }
 
+export interface VTTTextLabel {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  color?: string;
+  fontSize?: number;
+}
+
+export interface FogCutout {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface TableScene {
   id: string;
   campaignId?: string;
@@ -256,6 +273,9 @@ export interface TableScene {
   backgroundImage?: string;
   tokens: VTTToken[];
   drawings: VTTDrawing[];
+  textLabels?: VTTTextLabel[];
+  fogEnabled?: boolean;
+  fogRevealed?: FogCutout[];
   createdAt: number;
   updatedAt: number;
 }

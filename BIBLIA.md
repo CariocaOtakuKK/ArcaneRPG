@@ -5,7 +5,7 @@ Fonte única de verdade. Este documento registra TODAS as decisões, requisitos,
 Nome de trabalho: ARCANA — Plataforma de RPG 100% personalizável  
 Workspace: /home/user/ArcaneRPG  
 Criado em: 2026-09-15  
-Status: 🟡 Em construção (Fase 1 — Motor de Dados & Presets)  
+Status: 🟡 Em construção (Fase 4 — Vault & Knowledge Graph)  
 Idioma do produto: PT-BR primário (i18n com EN secundário)
 
 ---
@@ -118,4 +118,5 @@ Tabelas:
 - **2026-09-15 — Fase 0 (Fundação):** Concluída. Setup React 18, Vite 5, Tailwind CSS com tokens via CSS Variables, Dexie.js offline-first, Zod Schemas e estrutura modular anti-monólito.
 - **2026-09-15 — Fase 1 (Motor de Dados & Presets):** Concluída. Recursive descent parser à mão, rolador com suporte a keep/drop, pools de sucessos, dados Fate e percentuais. 7 presets oficiais adicionados e testados.
 - **2026-09-15 — Fase 2 (Fichas Dinâmicas, Bestiário & Editor Visual de Sistemas):** Concluída. Stat block parser para NPCs/monstros, Bestiário com envio para combate, Tracker de Combate & Iniciativa por turnos/rounds integrado ao VTT, e Editor Visual de Sistemas com clonagem para homebrew.
+- **2026-09-15 — Fase 3 (Pilar Mesa / VTT Avançado):** Concluída. Motor Canvas nativo multi-camadas com suporte a Grid Quadrado e Hexagonal (Pointy-topped), régua de medição euclidiana em tempo real (células e metros), Fog of War (Névoa de Guerra) com recorte de áreas reveladas, marcadores de texto em mapa, inspetor de tokens com alianças (amigo/inimigo/neutro), escala (0.5x a 4x) e trava de posição, Escudo do Mestre (referência rápida de CDs, condições, scratchpad e áudio ambiente), e Cronômetro de Sessão. 23 testes unitários passando.
 

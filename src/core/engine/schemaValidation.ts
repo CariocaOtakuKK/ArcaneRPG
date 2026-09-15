@@ -272,6 +272,30 @@ export const TableSceneSchema: z.ZodType<TableScene, z.ZodTypeDef, unknown> = z.
   backgroundImage: z.string().optional(),
   tokens: z.array(VTTTokenSchema).default([]),
   drawings: z.array(VTTDrawingSchema).default([]),
+  textLabels: z
+    .array(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        y: z.number(),
+        text: z.string(),
+        color: z.string().optional(),
+        fontSize: z.number().optional(),
+      })
+    )
+    .optional(),
+  fogEnabled: z.boolean().optional(),
+  fogRevealed: z
+    .array(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+      })
+    )
+    .optional(),
   createdAt: z.number().default(() => Date.now()),
   updatedAt: z.number().default(() => Date.now()),
 });
