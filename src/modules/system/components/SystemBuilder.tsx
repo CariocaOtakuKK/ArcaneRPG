@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '@/core/store/appStore';
+import { SystemEditorVisual } from './SystemEditorVisual';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -7,7 +8,22 @@ import { Textarea } from '@/components/ui/Input';
 import { executeSandboxHook, evaluateArithmeticExpression } from '@/core/engine/formulaHooks';
 import { validateJSONString, validateSystemDefinition } from '@/core/engine/schemaValidation';
 import { rollDice } from '@/core/dice/roller';
-import { Cpu, Play, CheckCircle2, FileJson, Sparkles, Dices, Shield, Heart } from 'lucide-react';
+import type { SystemDefinition } from '@/types';
+import {
+  Cpu,
+  Play,
+  CheckCircle2,
+  FileJson,
+  Sparkles,
+  Dices,
+  Shield,
+  Heart,
+  Copy,
+  Plus,
+  Download,
+  Upload,
+  Sliders,
+} from 'lucide-react';
 
 export const SystemBuilder: React.FC = () => {
   const systems = useAppStore((state) => state.systems);
@@ -17,6 +33,8 @@ export const SystemBuilder: React.FC = () => {
   const addToast = useAppStore((state) => state.addToast);
 
   const activeSystem = systems.find((s) => s.id === activeSystemId) || systems[0];
+
+  const [activeTab, setActiveTab] = useState<'visual' | 'json' | 'sandbox'>('visual');
 
   // Live Formula / Hook Sandbox Tester State
   const [testAttributes, setTestAttributes] = useState<string>(
@@ -38,6 +56,112 @@ export const SystemBuilder: React.FC = () => {
   useEffect(() => {
     setRawJson(JSON.stringify(activeSystem, null, 2));
   }, [activeSystem]);
+
+  const handleDuplicateSystem = async () => {
+    const clone: SystemDefinition = {
+      ...activeSystem,
+      id: `${activeSystem.id}-copy-${Date.now().toString(36).substring(2, 5)}`,
+      name: `${activeSystem.name} (Homebrew)`,
+      builtin: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const success = await saveSystem(clone);
+    if (success) {
+      setActiveSystemId(clone.id);
+      addToast({
+        type: 'success',
+        title: 'Sistema Duplicado',
+        message: `Criada cópia homebrew "${clone.name}".`,
+      });
+    }
+  };
+
+  const handleCreateNewSystem = async () => {
+    const newSys: SystemDefinition = {
+      id: `sys-custom-${Date.now()}`,
+      name: 'Novo Sistema Customizado',
+      version: '1.0.0',
+      author: 'Criador ARCANA',
+      description: 'Sistema criado do zero através do Editor Visual.',
+      builtin: false,
+      rollConvention: 'd20',
+      attributes: [
+        { id: 'str', name: 'Força', type: 'number', category: 'Atributos', defaultValue: 10 },
+        { id: 'dex', name: 'Destreza', type: 'number', category: 'Atributos', defaultValue: 10 },
+        {
+          id: 'defesa',
+          name: 'Defesa',
+          type: 'derived',
+          category: 'Combate',
+          defaultValue: 10,
+          formula: '10 + floor((dex - 10) / 2)',
+        },
+      ],
+      resources: [
+        { id: 'hp', name: 'Pontos de Vida', maxFormula: '20', defaultValue: 20, type: 'bar' },
+      ],
+      diceMacros: [
+        { id: 'd20', name: 'Rolagem d20', expression: '1d20' },
+      ],
+      rollPresets: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const success = await saveSystem(newSys);
+    if (success) {
+      setActiveSystemId(newSys.id);
+      setActiveTab('visual');
+    }
+  };
+
+  const handleExportSystem = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(activeSystem, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `${activeSystem.id}-preset.arcana.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    addToast({
+      type: 'info',
+      title: 'Sistema Exportado',
+      message: `Arquivo ${activeSystem.id}-preset.arcana.json baixado.`,
+    });
+  };
+
+  const handleImportSystem = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const content = event.target?.result as string;
+        const res = validateJSONString(content, validateSystemDefinition);
+        if (!res.success) {
+          addToast({
+            type: 'error',
+            title: 'JSON Inválido (Zod)',
+            message: res.errors.slice(0, 3).join(' | '),
+          });
+          return;
+        }
+
+        await saveSystem(res.data);
+        setActiveSystemId(res.data.id);
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
 
   const handleTestArithmetic = () => {
     try {
@@ -111,16 +235,15 @@ export const SystemBuilder: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
             <Cpu className="w-5 h-5 text-accent" />
-            Motor de Regras, Presets & Inspector de Fórmulas
+            Editor de Sistemas & Motor de Regras
           </h2>
           <p className="text-xs text-text-secondary mt-1">
-            Presets oficiais conforme a Bíblia (§6), sandbox de hooks e validação de schema Zod.
+            Personalização 100% livre: crie novos sistemas, altere fórmulas, adicione atributos e teste na sandbox.
           </p>
         </div>
 
-        {/* System Preset Picker */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-text-muted">Preset Ativo:</span>
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={activeSystemId}
             onChange={(e) => setActiveSystemId(e.target.value)}
@@ -132,19 +255,140 @@ export const SystemBuilder: React.FC = () => {
               </option>
             ))}
           </select>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleDuplicateSystem}
+            icon={<Copy className="w-3.5 h-3.5" />}
+            title="Criar cópia homebrew do sistema ativo"
+          >
+            Duplicar
+          </Button>
+
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={handleCreateNewSystem}
+            icon={<Plus className="w-3.5 h-3.5" />}
+            title="Criar novo sistema do zero"
+          >
+            Novo Sistema
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportSystem}
+            icon={<Download className="w-3.5 h-3.5" />}
+            title="Baixar preset em JSON"
+          >
+            Exportar
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleImportSystem}
+            icon={<Upload className="w-3.5 h-3.5" />}
+            title="Importar preset em JSON"
+          >
+            Importar
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sandbox Tester for Arithmetic, Functional Hooks & Dice */}
+      {/* Navigation Sub-Tabs */}
+      <div className="flex items-center gap-2 border-b border-border-subtle pb-2">
+        <Button
+          size="sm"
+          variant={activeTab === 'visual' ? 'primary' : 'ghost'}
+          onClick={() => setActiveTab('visual')}
+          icon={<Sliders className="w-4 h-4" />}
+        >
+          Editor Visual
+        </Button>
+        <Button
+          size="sm"
+          variant={activeTab === 'json' ? 'primary' : 'ghost'}
+          onClick={() => setActiveTab('json')}
+          icon={<FileJson className="w-4 h-4" />}
+        >
+          Editor JSON (Zod)
+        </Button>
+        <Button
+          size="sm"
+          variant={activeTab === 'sandbox' ? 'primary' : 'ghost'}
+          onClick={() => setActiveTab('sandbox')}
+          icon={<Play className="w-4 h-4" />}
+        >
+          Sandbox & Fórmulas
+        </Button>
+      </div>
+
+      {/* Tab 1: Visual System Editor */}
+      {activeTab === 'visual' && (
         <div className="space-y-6">
+          <SystemEditorVisual
+            system={activeSystem}
+            onChange={(updated) => {
+              saveSystem(updated);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Tab 2: Raw JSON Editor with Zod Schema Validation */}
+      {activeTab === 'json' && (
+        <div className="space-y-4">
+          <Card className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary flex items-center gap-2">
+                <FileJson className="w-4 h-4 text-accent" />
+                Definição do Sistema em JSON Puro
+              </h3>
+              <Badge variant="primary">Validação com Zod Ativa</Badge>
+            </div>
+
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Edite diretamente a estrutura JSON do sistema. Qualquer campo ausente ou tipo incorreto
+              será interceptado pelo validador Zod, emitindo aviso via Toast e impedindo quebras da aplicação.
+            </p>
+
+            <Textarea
+              rows={24}
+              value={rawJson}
+              onChange={(e) => setRawJson(e.target.value)}
+              className="font-mono text-xs leading-relaxed"
+            />
+
+            <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRawJson(JSON.stringify(activeSystem, null, 2))}
+              >
+                Resetar para o Salvo
+              </Button>
+              <Button size="sm" variant="primary" onClick={handleSaveJson} icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
+                Validar e Salvar Sistema
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Tab 3: Sandbox & Formula Inspector */}
+      {activeTab === 'sandbox' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sandbox Controls */}
           <Card className="space-y-4 border-l-4 border-l-accent">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary flex items-center gap-2">
                 <Play className="w-4 h-4 text-accent" />
                 Sandbox de Teste de Fórmulas & Hooks
               </h3>
-              <Badge variant="primary">Sandbox Isolada</Badge>
+              <Badge variant="primary">Ambiente Seguro</Badge>
             </div>
 
             <div>
@@ -161,7 +405,7 @@ export const SystemBuilder: React.FC = () => {
 
             <div className="space-y-2">
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">
-                Fórmula Aritmética Simples
+                Fórmula Aritmética
               </label>
               <div className="flex gap-2">
                 <input
@@ -177,8 +421,8 @@ export const SystemBuilder: React.FC = () => {
 
             <div className="space-y-2">
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center justify-between">
-                <span>Hook Funcional (JS Sandbox Puro)</span>
-                <span className="text-[10px] text-accent lowercase">Math & attr disponíveis</span>
+                <span>Hook Funcional (JS Sandbox)</span>
+                <span className="text-[10px] text-accent lowercase">Math & attr isolados</span>
               </label>
               <Textarea
                 rows={4}
@@ -194,7 +438,7 @@ export const SystemBuilder: React.FC = () => {
             {/* Test Dice Expression via Dice Engine */}
             <div className="space-y-2 pt-2 border-t border-border-subtle">
               <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">
-                Expressão do Motor de Dados (Gramática da Bíblia §5)
+                Expressão do Rolador de Dados
               </label>
               <div className="flex gap-2">
                 <input
@@ -219,7 +463,7 @@ export const SystemBuilder: React.FC = () => {
             )}
           </Card>
 
-          {/* Active System Details & Specs */}
+          {/* Active System Overview */}
           <Card className="space-y-4">
             <div className="flex items-center justify-between border-b border-border-subtle pb-2">
               <div>
@@ -244,7 +488,7 @@ export const SystemBuilder: React.FC = () => {
                     <div key={r.id} className="p-2 rounded bg-bg-tertiary border border-border-subtle text-xs">
                       <span className="font-semibold text-text-primary block">{r.name}</span>
                       <span className="text-[10px] text-text-muted font-mono">
-                        Fórmula Max: {r.maxFormula} ({r.type})
+                        Fórmula: {String(r.maxFormula)} ({r.type})
                       </span>
                     </div>
                   ))}
@@ -271,87 +515,12 @@ export const SystemBuilder: React.FC = () => {
                       {activeSystem.combat.hpResource}
                     </span>
                   </div>
-                  {activeSystem.combat.defenseStat && (
-                    <div>
-                      <span className="text-text-muted">Defesa: </span>
-                      <span className="font-mono font-semibold text-text-primary">
-                        {activeSystem.combat.defenseStat.name} ({activeSystem.combat.defenseStat.formula || 'Fixo'})
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
-
-            {/* Attributes list */}
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1.5">
-                Atributos Cadastrados ({activeSystem.attributes.length})
-              </span>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {activeSystem.attributes.map((attr) => (
-                  <div
-                    key={attr.id}
-                    className="p-2 bg-bg-tertiary rounded flex items-center justify-between text-xs border border-border-subtle"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-text-primary">{attr.name}</span>
-                      <span className="text-text-muted font-mono">({attr.id})</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {attr.hookFn ? (
-                        <Badge variant="primary">Hook JS</Badge>
-                      ) : attr.formula ? (
-                        <Badge variant="info">Fórmula</Badge>
-                      ) : (
-                        <Badge variant="neutral">{attr.type}</Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </Card>
         </div>
-
-        {/* JSON Schema Validator & Editor */}
-        <div className="space-y-6">
-          <Card className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary flex items-center gap-2">
-                <FileJson className="w-4 h-4 text-accent" />
-                Editor de Definição de Sistema (Validação Zod)
-              </h3>
-            </div>
-
-            <p className="text-xs text-text-secondary">
-              Qualquer alteração neste JSON é validada em tempo real contra o schema Zod. Se
-              houver erros de tipagem ou ausência de campos obrigatórios, o Toast de segurança é
-              disparado e o app não trava.
-            </p>
-
-            <Textarea
-              rows={22}
-              value={rawJson}
-              onChange={(e) => setRawJson(e.target.value)}
-              className="font-mono text-xs leading-relaxed"
-            />
-
-            <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setRawJson(JSON.stringify(activeSystem, null, 2))}
-              >
-                Resetar JSON
-              </Button>
-              <Button size="sm" variant="primary" onClick={handleSaveJson} icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
-                Validar e Salvar Sistema
-              </Button>
-            </div>
-          </Card>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

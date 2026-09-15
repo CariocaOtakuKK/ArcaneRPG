@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { useAppStore } from '@/core/store/appStore';
+import { BestiaryModal } from './BestiaryModal';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
-import { Plus, User, Trash2 } from 'lucide-react';
+import { Plus, User, Trash2, Skull } from 'lucide-react';
 
 export const CharacterList: React.FC = () => {
   const characters = useCharacterStore((state) => state.characters);
@@ -18,6 +19,7 @@ export const CharacterList: React.FC = () => {
   const activeCampaignId = useAppStore((state) => state.activeCampaignId);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBestiaryOpen, setIsBestiaryOpen] = useState(false);
   const [selectedSystem, setSelectedSystem] = useState(activeSystemId);
 
   const handleCreate = async () => {
@@ -29,17 +31,29 @@ export const CharacterList: React.FC = () => {
     <div className="w-80 border-r border-border-subtle bg-bg-secondary flex flex-col h-[calc(100vh-3.5rem)] select-none">
       <div className="p-4 border-b border-border-subtle flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wide">Fichas</h2>
+          <h2 className="text-sm font-bold text-text-primary uppercase tracking-wide">Fichas & Bestiário</h2>
           <span className="text-xs text-text-muted">{characters.length} cadastrados</span>
         </div>
-        <Button
-          size="sm"
-          variant="primary"
-          icon={<Plus className="w-3.5 h-3.5" />}
-          onClick={() => setIsModalOpen(true)}
-        >
-          Nova
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<Skull className="w-3.5 h-3.5" />}
+            onClick={() => setIsBestiaryOpen(true)}
+            title="Abrir Bestiário / NPCs"
+          >
+            Bestiário
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Plus className="w-3.5 h-3.5" />}
+            onClick={() => setIsModalOpen(true)}
+            title="Criar Nova Ficha de Jogador"
+          >
+            Nova
+          </Button>
+        </div>
       </div>
 
       <div className="p-3 overflow-y-auto flex-1 space-y-2">
@@ -91,6 +105,12 @@ export const CharacterList: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Modal do Bestiário & Stat Block Parser */}
+      <BestiaryModal
+        isOpen={isBestiaryOpen}
+        onClose={() => setIsBestiaryOpen(false)}
+      />
 
       {/* Modal de Criação de Personagem com Seleção de Sistema */}
       <Modal

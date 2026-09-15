@@ -111,3 +111,11 @@ Tabelas:
 - `systems`: `id, builtin, name`
 - `settings`: `key`
 - `assets`: `id, campaignId, kind`
+
+---
+
+## 16. Log de Progresso
+- **2026-09-15 — Fase 0 (Fundação):** Concluída. Setup React 18, Vite 5, Tailwind CSS com tokens via CSS Variables, Dexie.js offline-first, Zod Schemas e estrutura modular anti-monólito.
+- **2026-09-15 — Fase 1 (Motor de Dados & Presets):** Concluída. Recursive descent parser à mão, rolador com suporte a keep/drop, pools de sucessos, dados Fate e percentuais. 7 presets oficiais adicionados e testados.
+- **2026-09-15 — Fase 2 (Fichas Dinâmicas, Bestiário & Editor Visual de Sistemas):** Concluída. Stat block parser para NPCs/monstros, Bestiário com envio para combate, Tracker de Combate & Iniciativa por turnos/rounds integrado ao VTT, e Editor Visual de Sistemas com clonagem para homebrew.
+

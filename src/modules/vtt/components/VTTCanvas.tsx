@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useVTTStore } from '../store/vttStore';
 import { DiceRollerPanel } from './DiceRollerPanel';
+import { CombatTracker } from './CombatTracker';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
@@ -14,6 +15,7 @@ import {
   Trash2,
   Grid,
   Dices,
+  Swords,
 } from 'lucide-react';
 
 export const VTTCanvas: React.FC = () => {
@@ -43,6 +45,7 @@ export const VTTCanvas: React.FC = () => {
   const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
   const [newTokenName, setNewTokenName] = useState('');
   const [showDicePanel, setShowDicePanel] = useState(false);
+  const [showCombatTracker, setShowCombatTracker] = useState(false);
 
   const activeScene = scenes.find((s) => s.id === activeSceneId) || scenes[0];
 
@@ -337,15 +340,30 @@ export const VTTCanvas: React.FC = () => {
           </Button>
         </Card>
 
-        {/* Dice Roller Quick Toggle */}
+        {/* Dice & Combat Quick Toggles */}
         <Card className="p-1 flex flex-col gap-1 bg-bg-secondary/90 backdrop-blur border border-border-default shadow-card">
           <Button
             size="sm"
             variant={showDicePanel ? 'primary' : 'ghost'}
-            onClick={() => setShowDicePanel(!showDicePanel)}
+            onClick={() => {
+              setShowDicePanel(!showDicePanel);
+              if (!showDicePanel) setShowCombatTracker(false);
+            }}
             title="Abrir Rolador de Dados"
           >
             <Dices className="w-4 h-4" />
+          </Button>
+
+          <Button
+            size="sm"
+            variant={showCombatTracker ? 'primary' : 'ghost'}
+            onClick={() => {
+              setShowCombatTracker(!showCombatTracker);
+              if (!showCombatTracker) setShowDicePanel(false);
+            }}
+            title="Abrir Tracker de Combate & Iniciativa"
+          >
+            <Swords className="w-4 h-4" />
           </Button>
         </Card>
 
@@ -394,6 +412,13 @@ export const VTTCanvas: React.FC = () => {
       {showDicePanel && (
         <div className="absolute top-4 left-16 z-30 w-80 h-[520px]">
           <DiceRollerPanel />
+        </div>
+      )}
+
+      {/* Floating Combat Tracker Panel */}
+      {showCombatTracker && (
+        <div className="absolute top-4 left-16 z-30 w-96 h-[560px]">
+          <CombatTracker />
         </div>
       )}
 
