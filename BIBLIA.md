@@ -5,7 +5,7 @@ Fonte única de verdade. Este documento registra TODAS as decisões, requisitos,
 Nome de trabalho: ARCANA — Plataforma de RPG 100% personalizável  
 Workspace: /home/user/ArcaneRPG  
 Criado em: 2026-09-15  
-Status: 🟡 Em construção (Fase 5 — Campanhas, Sessões & Linha do Tempo)  
+Status: 🟢 Suíte ARCANA 1.0 Completa (Fases 0 a 5 Concluídas)  
 Idioma do produto: PT-BR primário (i18n com EN secundário)
 
 ---
@@ -120,4 +120,5 @@ Tabelas:
 - **2026-09-15 — Fase 2 (Fichas Dinâmicas, Bestiário & Editor Visual de Sistemas):** Concluída. Stat block parser para NPCs/monstros, Bestiário com envio para combate, Tracker de Combate & Iniciativa por turnos/rounds integrado ao VTT, e Editor Visual de Sistemas com clonagem para homebrew.
 - **2026-09-15 — Fase 3 (Pilar Mesa / VTT Avançado):** Concluída. Motor Canvas nativo multi-camadas com suporte a Grid Quadrado e Hexagonal (Pointy-topped), régua de medição euclidiana em tempo real (células e metros), Fog of War (Névoa de Guerra) com recorte de áreas reveladas, marcadores de texto em mapa, inspetor de tokens com alianças (amigo/inimigo/neutro), escala (0.5x a 4x) e trava de posição, Escudo do Mestre (referência rápida de CDs, condições, scratchpad e áudio ambiente), e Cronômetro de Sessão. 23 testes unitários passando.
 - **2026-09-15 — Fase 4 (Pilar Vault & Grafo de Conhecimento):** Concluída. Renderizador nativo de Markdown com suporte a wikilinks bidirecionais `[[Nota]]`, detecção e resolução de notas fantasmas, painel de backlinks, detector de menções não-linkadas (Unlinked Mentions) com conversão em 1 clique para wikilink, modelos de worldbuilding (PNJs, Lugares, Facções, Itens Mágicos, Sessões), exportação e importação compatíveis com Obsidian (.md com Frontmatter YAML), e Grafo de Conhecimento SVG nativo com simulação física de forças (repulsão e molas), raio por grau de centralidade e filtros em tempo real. 28 testes unitários passando.
+- **2026-09-15 — Fase 5 (Pilar Campanhas, Sessões, Quests & Linha do Tempo):** Concluída. Sistema de atas e histórico de sessões com número, data, participantes, cálculo de XP e tags de saque; diário de missões (quests ativas, completadas, falhadas com checklist interativa de objetivos); cronologia/linha do tempo visual de eventos mundiais e marcos de campanha; e gerador automatizado de relatório consolidado em Markdown com download e cópia direta. 32 testes unitários passando.
 

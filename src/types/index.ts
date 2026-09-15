@@ -358,6 +358,36 @@ export interface SessionLog {
   updatedAt: number;
 }
 
+export interface QuestObjective {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface CampaignQuest {
+  id: string;
+  campaignId: string;
+  title: string;
+  description: string;
+  status: 'active' | 'completed' | 'failed';
+  giverNpc?: string;
+  location?: string;
+  reward?: string;
+  objectives: QuestObjective[];
+  createdAt: number;
+}
+
+export interface CampaignTimelineEvent {
+  id: string;
+  campaignId: string;
+  inGameDate: string;
+  realDate?: string;
+  title: string;
+  summary: string;
+  category: 'milestone' | 'combat' | 'lore' | 'discovery' | 'tragedy';
+  relatedDocId?: string;
+}
+
 export interface Campaign {
   id: string;
   name: string;
@@ -368,6 +398,8 @@ export interface Campaign {
   activeEncounterId?: string;
   characterIds: string[];
   documentIds: string[];
+  quests?: CampaignQuest[];
+  timeline?: CampaignTimelineEvent[];
   createdAt: number;
   updatedAt: number;
 }

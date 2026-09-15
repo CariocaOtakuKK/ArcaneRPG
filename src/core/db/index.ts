@@ -178,6 +178,21 @@ export const DEFAULT_VAULT_DOCS: VaultDocument[] = [
   },
 ];
 
+export const DEFAULT_SESSION_LOG: SessionLog = {
+  id: 'session-1',
+  campaignId: 'camp-default',
+  sessionNumber: 1,
+  date: '2026-09-10',
+  title: 'A Chegada às Ruínas de Aethelgard',
+  summary:
+    'Os aventureiros reuniram suprimentos na estalagem e seguiram a trilha da floresta sussurrante, descobrindo o pórtico selado das catacumbas ancestrais e derrotando a guarda avançada.',
+  attendees: ['Elyon'],
+  xpGranted: 350,
+  loot: ['Adaga de Prata Antiga', '50 moedas de ouro imperial', 'Pergaminho de Proteção'],
+  createdAt: Date.now() - 86400000 * 5,
+  updatedAt: Date.now() - 86400000 * 5,
+};
+
 export const DEFAULT_CAMPAIGN: Campaign = {
   id: 'camp-default',
   name: 'Crônicas de Aethelgard',
@@ -186,6 +201,66 @@ export const DEFAULT_CAMPAIGN: Campaign = {
   activeSceneId: 'scene-crypt',
   characterIds: ['char-elyon'],
   documentIds: ['vault-lore-1', 'vault-loc-1'],
+  quests: [
+    {
+      id: 'quest-1',
+      campaignId: 'camp-default',
+      title: 'Recuperar o Fragmento do Cristal de Éter',
+      description: 'O Arquimago Therion solicitou que o grupo recupere a relíquia mística antes que caia nas mãos do culto.',
+      status: 'active',
+      giverNpc: 'Arquimago Therion',
+      location: 'Cripta de Aethelgard',
+      reward: '500 PO e Acesso aos Arquivos da Torre',
+      objectives: [
+        { id: 'obj-1', text: 'Adentrar as Criptas Inferiores', completed: true },
+        { id: 'obj-2', text: 'Derrotar a guarda de esqueletos', completed: true },
+        { id: 'obj-3', text: 'Decifrar as runas protetoras do sarcófago', completed: false },
+        { id: 'obj-4', text: 'Extrair o Cristal sem dissipar o campo de contenção', completed: false },
+      ],
+      createdAt: Date.now() - 86400000 * 3,
+    },
+    {
+      id: 'quest-2',
+      campaignId: 'camp-default',
+      title: 'Investigar os Sussurros na Floresta',
+      description: 'Aldeões locais relatam sombras inquietas e cânticos estranhos vindos dos carvalhos ancestrais.',
+      status: 'completed',
+      giverNpc: 'Estalajadeiro Borin',
+      location: 'Bosque dos Murmúrios',
+      reward: '100 PO e suprimentos para 2 semanas',
+      objectives: [
+        { id: 'obj-2-1', text: 'Rastrear a origem dos cânticos', completed: true },
+        { id: 'obj-2-2', text: 'Dispersar os batedores cultistas', completed: true },
+      ],
+      createdAt: Date.now() - 86400000 * 7,
+    },
+  ],
+  timeline: [
+    {
+      id: 'time-1',
+      campaignId: 'camp-default',
+      inGameDate: 'Ano 1492 - 10 de Mirtul',
+      title: 'Reunião na Estalagem do Javali Prateado',
+      summary: 'O grupo formalizou o pacto de exploração e recebeu o mapa inicial do Arquimago.',
+      category: 'milestone',
+    },
+    {
+      id: 'time-2',
+      campaignId: 'camp-default',
+      inGameDate: 'Ano 1492 - 12 de Mirtul',
+      title: 'A Emboscada na Travessia do Rio',
+      summary: 'Criaturas corrompidas pelo éter atacaram o acampamento durante a terceira vigília.',
+      category: 'combat',
+    },
+    {
+      id: 'time-3',
+      campaignId: 'camp-default',
+      inGameDate: 'Ano 1492 - 14 de Mirtul',
+      title: 'Descoberta do Pórtico das Criptas',
+      summary: 'Elyon utilizou seu foco arcano para revelar a senha runica gravada na pedra angular.',
+      category: 'discovery',
+    },
+  ],
   createdAt: Date.now(),
   updatedAt: Date.now(),
 };
@@ -224,6 +299,11 @@ export async function initializeDatabase(): Promise<void> {
   const campCount = await db.campaigns.count();
   if (campCount === 0) {
     await db.campaigns.add(DEFAULT_CAMPAIGN);
+  }
+
+  const sessionCount = await db.sessions.count();
+  if (sessionCount === 0) {
+    await db.sessions.add(DEFAULT_SESSION_LOG);
   }
 }
 
