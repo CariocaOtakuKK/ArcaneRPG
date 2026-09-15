@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import type { VaultDocument, VaultCategory, VaultGraphNode, VaultGraphEdge } from '@/types';
 import { db, DEFAULT_VAULT_DOCS } from '@/core/db';
 import { useAppStore } from '@/core/store/appStore';
+import {
+  extractWikilinks,
+  parseMarkdownWithFrontmatter,
+  convertMentionToWikilink,
+} from '../utils/vaultUtils';
 
 interface VaultState {
   documents: VaultDocument[];
@@ -16,11 +21,18 @@ interface VaultState {
   setSelectedCategory: (cat: VaultCategory | 'all') => void;
   setSelectedTag: (tag: string | null) => void;
 
-  createDocument: (title: string, category: VaultCategory, campaignId?: string) => Promise<string>;
+  createDocument: (
+    title: string,
+    category: VaultCategory,
+    initialContent?: string,
+    campaignId?: string
+  ) => Promise<string>;
   updateDocument: (id: string, updates: Partial<VaultDocument>) => void;
   deleteDocument: (id: string) => Promise<void>;
   linkDocuments: (sourceId: string, targetId: string) => void;
   unlinkDocuments: (sourceId: string, targetId: string) => void;
+  convertMention: (sourceDocId: string, targetTitle: string) => void;
+  importMarkdownDoc: (rawMarkdown: string) => Promise<string>;
 
   // Graph calculation helpers for Native SVG/Canvas (No React Flow)
   getGraphData: () => { nodes: VaultGraphNode[]; edges: VaultGraphEdge[] };
@@ -28,7 +40,7 @@ interface VaultState {
 
 export const useVaultStore = create<VaultState>((set, get) => ({
   documents: DEFAULT_VAULT_DOCS,
-  activeDocumentId: DEFAULT_VAULT_DOCS[0].id,
+  activeDocumentId: DEFAULT_VAULT_DOCS[0]?.id || null,
   searchQuery: '',
   selectedCategory: 'all',
   selectedTag: null,
@@ -37,7 +49,10 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     try {
       const all = await db.vault.toArray();
       if (all.length > 0) {
-        set({ documents: all });
+        set({
+          documents: all,
+          activeDocumentId: get().activeDocumentId || all[0].id,
+        });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao carregar vault';
@@ -54,20 +69,37 @@ export const useVaultStore = create<VaultState>((set, get) => ({
   setSelectedCategory: (cat) => set({ selectedCategory: cat }),
   setSelectedTag: (tag) => set({ selectedTag: tag }),
 
-  createDocument: async (title, category, campaignId) => {
+  createDocument: async (title, category, initialContent, campaignId) => {
     const newDoc: VaultDocument = {
-      id: `vault-${Date.now()}`,
+      id: `vault-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       campaignId,
       title,
       category,
-      content: `# ${title}\n\nEscreva as notas ou detalhes aqui...`,
+      content: initialContent || `# ${title}\n\nEscreva as notas ou detalhes aqui...`,
       tags: [],
       links: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
-    await db.vault.add(newDoc);
+    // Auto-resolve any wikilinks in initial content
+    const wikilinkTitles = extractWikilinks(newDoc.content);
+    const existing = get().documents;
+    for (const linkTitle of wikilinkTitles) {
+      const target = existing.find(
+        (d) => d.title.trim().toLowerCase() === linkTitle.toLowerCase()
+      );
+      if (target && !newDoc.links.includes(target.id)) {
+        newDoc.links.push(target.id);
+      }
+    }
+
+    try {
+      await db.vault.add(newDoc);
+    } catch (err) {
+      console.warn('Dexie add failed:', err);
+    }
+
     set((state) => ({
       documents: [newDoc, ...state.documents],
       activeDocumentId: newDoc.id,
@@ -87,9 +119,34 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     const docIndex = documents.findIndex((d) => d.id === id);
     if (docIndex === -1) return;
 
+    const currentDoc = documents[docIndex];
+    let links = updates.links !== undefined ? updates.links : [...currentDoc.links];
+
+    // If content was updated, extract wikilinks and auto-sync links
+    if (updates.content !== undefined) {
+      const wikilinkTitles = extractWikilinks(updates.content);
+      const autoLinkIds: string[] = [];
+      for (const linkTitle of wikilinkTitles) {
+        const target = documents.find(
+          (d) => d.id !== id && d.title.trim().toLowerCase() === linkTitle.toLowerCase()
+        );
+        if (target) {
+          autoLinkIds.push(target.id);
+        }
+      }
+
+      // Merge explicit links and wikilink targets
+      for (const targetId of autoLinkIds) {
+        if (!links.includes(targetId)) {
+          links.push(targetId);
+        }
+      }
+    }
+
     const updatedDoc: VaultDocument = {
-      ...documents[docIndex],
+      ...currentDoc,
       ...updates,
+      links,
       updatedAt: Date.now(),
     };
 
@@ -146,18 +203,47 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     });
   },
 
+  convertMention: (sourceDocId, targetTitle) => {
+    const { documents, updateDocument } = get();
+    const source = documents.find((d) => d.id === sourceDocId);
+    if (!source) return;
+
+    const newContent = convertMentionToWikilink(source.content, targetTitle);
+    updateDocument(sourceDocId, { content: newContent });
+
+    useAppStore.getState().addToast({
+      type: 'success',
+      title: 'Menção Convertida',
+      message: `"${targetTitle}" agora é um wikilink em "${source.title}".`,
+    });
+  },
+
+  importMarkdownDoc: async (rawMarkdown) => {
+    const parsed = parseMarkdownWithFrontmatter(rawMarkdown);
+    const title = parsed.title || 'Documento Importado';
+    const category = parsed.category || 'lore';
+    const docId = await get().createDocument(title, category, parsed.content);
+
+    if (parsed.tags && parsed.tags.length > 0) {
+      get().updateDocument(docId, { tags: parsed.tags });
+    }
+
+    return docId;
+  },
+
   getGraphData: () => {
     const { documents } = get();
     const count = documents.length;
-    const radius = Math.max(160, count * 35);
-    const centerX = 400;
-    const centerY = 300;
+    const radius = Math.max(180, count * 36);
+    const centerX = 450;
+    const centerY = 350;
 
-    // Distribute nodes circularly or in concentric arcs
+    // Distribute nodes circularly with organic jitter
     const nodes: VaultGraphNode[] = documents.map((doc, i) => {
       const angle = (i / (count || 1)) * 2 * Math.PI;
-      const x = centerX + Math.cos(angle) * (radius * 0.75 + (i % 2) * 50);
-      const y = centerY + Math.sin(angle) * (radius * 0.75 + (i % 2) * 50);
+      const dist = radius * 0.75 + ((i * 37) % 70);
+      const x = centerX + Math.cos(angle) * dist;
+      const y = centerY + Math.sin(angle) * dist;
       return {
         id: doc.id,
         title: doc.title,
@@ -168,10 +254,16 @@ export const useVaultStore = create<VaultState>((set, get) => ({
     });
 
     const edges: VaultGraphEdge[] = [];
+    const edgeKeySet = new Set<string>();
+
     for (const doc of documents) {
       for (const targetId of doc.links) {
         if (documents.some((d) => d.id === targetId)) {
-          edges.push({ source: doc.id, target: targetId });
+          const key = [doc.id, targetId].sort().join('---');
+          if (!edgeKeySet.has(key)) {
+            edgeKeySet.add(key);
+            edges.push({ source: doc.id, target: targetId });
+          }
         }
       }
     }

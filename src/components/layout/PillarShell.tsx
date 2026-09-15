@@ -62,7 +62,11 @@ export const PillarShell: React.FC = () => {
             </div>
 
             <div className="flex-1 flex overflow-hidden">
-              {vaultSubView === 'editor' ? <VaultEditor /> : <VaultGraph />}
+              {vaultSubView === 'editor' ? (
+                <VaultEditor />
+              ) : (
+                <VaultGraph onOpenDocument={() => setVaultSubView('editor')} />
+              )}
             </div>
           </div>
         </div>
