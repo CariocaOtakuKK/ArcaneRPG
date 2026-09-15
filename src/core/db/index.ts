@@ -5,7 +5,12 @@ import type {
   TableScene,
   VaultDocument,
   Campaign,
+  Encounter,
+  SessionLog,
+  RollRecord,
 } from '@/types';
+import { OFFICIAL_PRESETS } from '@/systems/registry';
+import { dnd5eSystem } from '@/systems/presets/dnd5e';
 
 export class ArcanaDatabase extends Dexie {
   systems!: Table<SystemDefinition, string>;
@@ -13,243 +18,78 @@ export class ArcanaDatabase extends Dexie {
   scenes!: Table<TableScene, string>;
   vault!: Table<VaultDocument, string>;
   campaigns!: Table<Campaign, string>;
+  encounters!: Table<Encounter, string>;
+  sessions!: Table<SessionLog, string>;
+  rolls!: Table<RollRecord, string>;
 
   constructor() {
     super('ArcanaRPG_DB');
 
-    this.version(1).stores({
-      systems: 'id, name, updatedAt',
-      characters: 'id, systemId, campaignId, name, updatedAt',
+    this.version(2).stores({
+      systems: 'id, name, builtin, updatedAt',
+      characters: 'id, systemId, campaignId, name, type, updatedAt',
       scenes: 'id, campaignId, name, updatedAt',
-      vault: 'id, campaignId, category, title, updatedAt',
+      vault: 'id, campaignId, category, folder, *tags, title, updatedAt',
       campaigns: 'id, systemId, name, updatedAt',
+      encounters: 'id, campaignId, name, updatedAt',
+      sessions: 'id, campaignId, date, updatedAt',
+      rolls: 'id, campaignId, createdAt',
     });
   }
 }
 
 export const db = new ArcanaDatabase();
 
-// Default starter system definition showing both arithmetic formulas and functional hooks
-export const DEFAULT_SYSTEM: SystemDefinition = {
-  id: 'd20-arcana',
-  name: 'Arcana D20 Core',
-  version: '1.0.0',
-  author: 'ARCANA Architecture',
-  description: 'Sistema D20 adaptativo com atributos canônicos e ganchos funcionais.',
-  attributes: [
-    {
-      id: 'level',
-      name: 'Nível',
-      type: 'number',
-      category: 'Geral',
-      defaultValue: 1,
-      min: 1,
-      max: 20,
-      description: 'Nível de personagem.',
-    },
-    {
-      id: 'strength',
-      name: 'Força',
-      type: 'number',
-      category: 'Atributos Base',
-      defaultValue: 10,
-      min: 1,
-      max: 30,
-      description: 'Poder físico e capacidade atlética.',
-    },
-    {
-      id: 'dexterity',
-      name: 'Destreza',
-      type: 'number',
-      category: 'Atributos Base',
-      defaultValue: 10,
-      min: 1,
-      max: 30,
-      description: 'Agilidade, reflexos e equilíbrio.',
-    },
-    {
-      id: 'constitution',
-      name: 'Constituição',
-      type: 'number',
-      category: 'Atributos Base',
-      defaultValue: 10,
-      min: 1,
-      max: 30,
-      description: 'Saúde, vigor e resistência física.',
-    },
-    {
-      id: 'intelligence',
-      name: 'Inteligência',
-      type: 'number',
-      category: 'Atributos Base',
-      defaultValue: 10,
-      min: 1,
-      max: 30,
-      description: 'Acuidade mental, memória e raciocínio.',
-    },
-    {
-      id: 'wisdom',
-      name: 'Sabedoria',
-      type: 'number',
-      category: 'Atributos Base',
-      defaultValue: 10,
-      min: 1,
-      max: 30,
-      description: 'Percepção, intuição e sintonia.',
-    },
-    {
-      id: 'charisma',
-      name: 'Carisma',
-      type: 'number',
-      category: 'Atributos Base',
-      defaultValue: 10,
-      min: 1,
-      max: 30,
-      description: 'Força de personalidade e persuasão.',
-    },
-    // Derived attribute via arithmetic formula
-    {
-      id: 'strength_mod',
-      name: 'Modificador de Força',
-      type: 'derived',
-      category: 'Modificadores',
-      defaultValue: 0,
-      formula: 'floor((strength - 10) / 2)',
-      description: 'Calculado aritmeticamente: floor((Força - 10) / 2).',
-    },
-    {
-      id: 'dexterity_mod',
-      name: 'Modificador de Destreza',
-      type: 'derived',
-      category: 'Modificadores',
-      defaultValue: 0,
-      formula: 'floor((dexterity - 10) / 2)',
-      description: 'Calculado aritmeticamente: floor((Destreza - 10) / 2).',
-    },
-    {
-      id: 'constitution_mod',
-      name: 'Modificador de Constituição',
-      type: 'derived',
-      category: 'Modificadores',
-      defaultValue: 0,
-      formula: 'floor((constitution - 10) / 2)',
-      description: 'Calculado aritmeticamente: floor((Constituição - 10) / 2).',
-    },
-    // Derived attribute via functional JS hook (demonstrating non-linear progression hook)
-    {
-      id: 'proficiency_bonus',
-      name: 'Bônus de Proficiência',
-      type: 'derived',
-      category: 'Geral',
-      defaultValue: 2,
-      hookFn: `// Exemplo de Hook não-linear para progressão de proficiência por nível
-const lvl = Number(attr.level) || 1;
-if (lvl >= 17) return 6;
-if (lvl >= 13) return 5;
-if (lvl >= 9) return 4;
-if (lvl >= 5) return 3;
-return 2;`,
-      description: 'Calculado via Hook funcional de progressão escalonada.',
-    },
-    {
-      id: 'armor_class',
-      name: 'Classe de Armadura (CA)',
-      type: 'derived',
-      category: 'Combate',
-      defaultValue: 10,
-      formula: '10 + dexterity_mod',
-      description: 'Defesa baseada em 10 + Modificador de Destreza.',
-    },
-    {
-      id: 'hp_max',
-      name: 'Pontos de Vida Máximos',
-      type: 'derived',
-      category: 'Combate',
-      defaultValue: 10,
-      hookFn: `// Hook: Cálculo de vida considerando dado de vida d10 no nível 1 + mod constituição
-const lvl = Number(attr.level) || 1;
-const conMod = Number(attr.constitution_mod) || 0;
-return Math.max(1, 10 + conMod + (lvl - 1) * (6 + conMod));`,
-      description: 'Calculado via Hook dinâmico de PVs máximos.',
-    },
-    {
-      id: 'hp_current',
-      name: 'Pontos de Vida Atuais',
-      type: 'number',
-      category: 'Combate',
-      defaultValue: 10,
-      min: 0,
-      description: 'Vida atual do personagem.',
-    },
-  ],
-  rollPresets: [
-    {
-      id: 'attack_melee',
-      name: 'Ataque Corpo a Corpo',
-      expression: '1d20 + @attributes.strength_mod + @attributes.proficiency_bonus',
-      description: 'Ataque padrão usando modificador de força e proficiência.',
-    },
-    {
-      id: 'initiative',
-      name: 'Iniciativa',
-      expression: '1d20 + @attributes.dexterity_mod',
-      description: 'Teste de rapidez no início do combate.',
-    },
-  ],
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-};
-
 export const DEFAULT_CHARACTER: Character = {
   id: 'char-elyon',
-  systemId: 'd20-arcana',
+  systemId: 'dnd5e',
   campaignId: 'camp-default',
-  name: 'Elyon, o Arcanista Cinzento',
+  name: 'Elyon, o Mago Evocador',
+  type: 'pc',
   avatarUrl: '',
-  bio: 'Um sábio andarilho dedicado a decifrar as antigas runas dos Reinos Astrais.',
+  bio: 'Um estudioso dedicado aos mistérios do Éter e da magia planar.',
   attributes: {
     level: 3,
-    strength: 10,
-    dexterity: 14,
-    constitution: 12,
-    intelligence: 18,
-    wisdom: 13,
-    charisma: 11,
-    strength_mod: 0,
-    dexterity_mod: 2,
-    constitution_mod: 1,
+    str: 10,
+    dex: 14,
+    con: 12,
+    int: 18,
+    wis: 13,
+    cha: 11,
+    mod_str: 0,
+    mod_dex: 2,
+    mod_con: 1,
+    mod_int: 4,
+    mod_wis: 1,
+    mod_cha: 0,
     proficiency_bonus: 2,
     armor_class: 12,
-    hp_max: 24,
-    hp_current: 24,
+    speed: 9,
+  },
+  resources: {
+    hp: { current: 22, max: 22 },
+    inspiration: { current: 1, max: 1 },
   },
   inventory: [
     {
       id: 'item-1',
-      name: 'Grimório de Éter',
+      name: 'Grimório de Feitiços',
       quantity: 1,
       weight: 3,
       equipped: true,
-      description: 'Páginas gravadas com tinta fluorescente arcana.',
+      category: 'Equipamento Geral',
+      description: 'Capa de couro com runas douradas gravadas.',
       tags: ['Mágico', 'Foco'],
     },
     {
       id: 'item-2',
-      name: 'Adaga de Prata Lunar',
+      name: 'Adaga de Prata',
       quantity: 1,
       weight: 1,
       equipped: true,
+      category: 'Arma',
       description: '1d4 dano perfurante.',
       tags: ['Arma', 'Leve'],
-    },
-    {
-      id: 'item-3',
-      name: 'Poção de Cura Menor',
-      quantity: 3,
-      weight: 0.5,
-      equipped: false,
-      description: 'Restaura 2d4+2 pontos de vida.',
-      tags: ['Consumível'],
     },
   ],
   abilities: [
@@ -268,7 +108,7 @@ export const DEFAULT_CHARACTER: Character = {
       description: 'Dardos de força luminosa teleguiados infalíveis.',
     },
   ],
-  notes: 'Procura fragmentos do Selo de Aethelgard nas catacumbas do Norte.',
+  notes: 'Em busca do tomo ancestral escondido nas Criptas de Aethelgard.',
   createdAt: Date.now(),
   updatedAt: Date.now(),
 };
@@ -276,7 +116,7 @@ export const DEFAULT_CHARACTER: Character = {
 export const DEFAULT_SCENE: TableScene = {
   id: 'scene-crypt',
   campaignId: 'camp-default',
-  name: 'Cripta das Sombras Esquecidas',
+  name: 'Cripta de Aethelgard',
   gridType: 'square',
   gridSize: 48,
   width: 1440,
@@ -290,7 +130,8 @@ export const DEFAULT_SCENE: TableScene = {
       y: 288,
       size: 1,
       color: '#8b5cf6',
-      hp: { current: 24, max: 24 },
+      team: 'ally',
+      hp: { current: 22, max: 22 },
       conditions: ['Inspirado'],
       isLocked: false,
     },
@@ -301,18 +142,8 @@ export const DEFAULT_SCENE: TableScene = {
       y: 288,
       size: 1,
       color: '#ef4444',
+      team: 'enemy',
       hp: { current: 13, max: 13 },
-      conditions: [],
-      isLocked: false,
-    },
-    {
-      id: 'tok-skeleton-2',
-      name: 'Arqueiro Esqueleto',
-      x: 576,
-      y: 192,
-      size: 1,
-      color: '#ef4444',
-      hp: { current: 11, max: 11 },
       conditions: [],
       isLocked: false,
     },
@@ -350,7 +181,7 @@ export const DEFAULT_VAULT_DOCS: VaultDocument[] = [
 export const DEFAULT_CAMPAIGN: Campaign = {
   id: 'camp-default',
   name: 'Crônicas de Aethelgard',
-  systemId: 'd20-arcana',
+  systemId: 'dnd5e',
   description: 'Uma expedição arqueológica e arcana através das profundezas das ruínas esquecidas.',
   activeSceneId: 'scene-crypt',
   characterIds: ['char-elyon'],
@@ -360,12 +191,40 @@ export const DEFAULT_CAMPAIGN: Campaign = {
 };
 
 export async function initializeDatabase(): Promise<void> {
-  const count = await db.systems.count();
-  if (count === 0) {
-    await db.systems.add(DEFAULT_SYSTEM);
+  // Check if system definitions exist; populate official presets if empty
+  const systemCount = await db.systems.count();
+  if (systemCount === 0) {
+    await db.systems.bulkAdd(OFFICIAL_PRESETS);
+  } else {
+    // Ensure all built-in official presets are present or updated
+    for (const preset of OFFICIAL_PRESETS) {
+      const existing = await db.systems.get(preset.id);
+      if (!existing) {
+        await db.systems.put(preset);
+      }
+    }
+  }
+
+  // Populate default campaign, character, scene and vault notes
+  const charCount = await db.characters.count();
+  if (charCount === 0) {
     await db.characters.add(DEFAULT_CHARACTER);
+  }
+
+  const sceneCount = await db.scenes.count();
+  if (sceneCount === 0) {
     await db.scenes.add(DEFAULT_SCENE);
+  }
+
+  const vaultCount = await db.vault.count();
+  if (vaultCount === 0) {
     await db.vault.bulkAdd(DEFAULT_VAULT_DOCS);
+  }
+
+  const campCount = await db.campaigns.count();
+  if (campCount === 0) {
     await db.campaigns.add(DEFAULT_CAMPAIGN);
   }
 }
+
+export const DEFAULT_SYSTEM: SystemDefinition = dnd5eSystem;

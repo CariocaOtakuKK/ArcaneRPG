@@ -12,6 +12,7 @@ const CATEGORY_COLORS: Record<VaultCategory, string> = {
   item: 'var(--status-info)',
   rule: 'var(--text-muted)',
   quest: 'var(--accent-secondary)',
+  session: 'var(--status-success)',
 };
 
 export const VaultGraph: React.FC = () => {

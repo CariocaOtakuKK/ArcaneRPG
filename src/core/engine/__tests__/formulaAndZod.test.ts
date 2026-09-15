@@ -6,7 +6,6 @@ import {
 } from '../formulaHooks';
 import {
   validateSystemDefinition,
-  validateCharacter,
   validateJSONString,
 } from '../schemaValidation';
 import { DEFAULT_SYSTEM } from '../../db';
@@ -51,18 +50,18 @@ describe('Formula Engine — Arithmetic & Hooks', () => {
   it('should recalculate derived attributes with chained dependencies', () => {
     const attributes = {
       level: 5,
-      strength: 18,
-      dexterity: 12,
-      constitution: 14,
+      str: 18,
+      dex: 12,
+      con: 14,
     };
 
     const { values, errors } = recalculateAllAttributes(DEFAULT_SYSTEM.attributes, attributes);
     expect(errors).toEqual({});
-    expect(values['strength_mod']).toBe(4);
-    expect(values['dexterity_mod']).toBe(1);
-    expect(values['constitution_mod']).toBe(2);
+    expect(values['mod_str']).toBe(4);
+    expect(values['mod_dex']).toBe(1);
+    expect(values['mod_con']).toBe(2);
     expect(values['proficiency_bonus']).toBe(3); // Level 5 gives prof 3 via hook!
-    expect(values['armor_class']).toBe(11); // 10 + dex_mod (1)
+    expect(values['armor_class']).toBe(11); // 10 + mod_dex (1)
   });
 });
 

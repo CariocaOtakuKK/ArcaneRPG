@@ -41,7 +41,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCampaignId: 'camp-default',
   setActiveCampaignId: (campaignId) => set({ activeCampaignId: campaignId }),
 
-  activeSystemId: 'd20-arcana',
+  activeSystemId: 'dnd5e',
   setActiveSystemId: (systemId) => set({ activeSystemId: systemId }),
 
   systems: [DEFAULT_SYSTEM],

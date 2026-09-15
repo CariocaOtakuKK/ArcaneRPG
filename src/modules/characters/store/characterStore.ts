@@ -147,6 +147,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
       systemId,
       campaignId,
       name: 'Novo Aventureiro',
+      type: 'pc',
       avatarUrl: '',
       bio: '',
       attributes: initialAttrs,

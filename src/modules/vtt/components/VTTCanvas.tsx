@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useVTTStore } from '../store/vttStore';
+import { DiceRollerPanel } from './DiceRollerPanel';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
@@ -12,6 +13,7 @@ import {
   RotateCcw,
   Trash2,
   Grid,
+  Dices,
 } from 'lucide-react';
 
 export const VTTCanvas: React.FC = () => {
@@ -40,6 +42,7 @@ export const VTTCanvas: React.FC = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [draggedTokenId, setDraggedTokenId] = useState<string | null>(null);
   const [newTokenName, setNewTokenName] = useState('');
+  const [showDicePanel, setShowDicePanel] = useState(false);
 
   const activeScene = scenes.find((s) => s.id === activeSceneId) || scenes[0];
 
@@ -334,6 +337,18 @@ export const VTTCanvas: React.FC = () => {
           </Button>
         </Card>
 
+        {/* Dice Roller Quick Toggle */}
+        <Card className="p-1 flex flex-col gap-1 bg-bg-secondary/90 backdrop-blur border border-border-default shadow-card">
+          <Button
+            size="sm"
+            variant={showDicePanel ? 'primary' : 'ghost'}
+            onClick={() => setShowDicePanel(!showDicePanel)}
+            title="Abrir Rolador de Dados"
+          >
+            <Dices className="w-4 h-4" />
+          </Button>
+        </Card>
+
         {/* Zoom & Viewport controls */}
         <Card className="p-1 flex flex-col gap-1 bg-bg-secondary/90 backdrop-blur border border-border-default shadow-card">
           <Button
@@ -374,6 +389,13 @@ export const VTTCanvas: React.FC = () => {
           </Button>
         )}
       </div>
+
+      {/* Floating Dice Roller Panel */}
+      {showDicePanel && (
+        <div className="absolute top-4 left-16 z-30 w-80 h-[520px]">
+          <DiceRollerPanel />
+        </div>
+      )}
 
       {/* Main Native HTML5 Canvas */}
       <canvas

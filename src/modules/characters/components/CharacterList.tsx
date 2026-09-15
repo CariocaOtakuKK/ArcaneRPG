@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { useAppStore } from '@/core/store/appStore';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import { Plus, User, Trash2 } from 'lucide-react';
 
 export const CharacterList: React.FC = () => {
@@ -12,8 +13,17 @@ export const CharacterList: React.FC = () => {
   const createNewCharacter = useCharacterStore((state) => state.createNewCharacter);
   const deleteCharacter = useCharacterStore((state) => state.deleteCharacter);
 
+  const systems = useAppStore((state) => state.systems);
   const activeSystemId = useAppStore((state) => state.activeSystemId);
   const activeCampaignId = useAppStore((state) => state.activeCampaignId);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedSystem, setSelectedSystem] = useState(activeSystemId);
+
+  const handleCreate = async () => {
+    await createNewCharacter(selectedSystem, activeCampaignId || undefined);
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="w-80 border-r border-border-subtle bg-bg-secondary flex flex-col h-[calc(100vh-3.5rem)] select-none">
@@ -26,7 +36,7 @@ export const CharacterList: React.FC = () => {
           size="sm"
           variant="primary"
           icon={<Plus className="w-3.5 h-3.5" />}
-          onClick={() => createNewCharacter(activeSystemId, activeCampaignId || undefined)}
+          onClick={() => setIsModalOpen(true)}
         >
           Nova
         </Button>
@@ -35,6 +45,8 @@ export const CharacterList: React.FC = () => {
       <div className="p-3 overflow-y-auto flex-1 space-y-2">
         {characters.map((char) => {
           const isActive = char.id === activeCharacterId;
+          const charSystem = systems.find((s) => s.id === char.systemId);
+
           return (
             <Card
               key={char.id}
@@ -51,13 +63,12 @@ export const CharacterList: React.FC = () => {
                     isActive ? 'bg-accent text-text-primary' : 'bg-bg-elevated text-text-muted'
                   }`}
                 >
-                  <User className="w-4 h-4" />
+                  {charSystem?.icon || <User className="w-4 h-4" />}
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-semibold text-text-primary truncate">{char.name}</h4>
-                  <p className="text-[11px] text-text-muted">
-                    Nível {String(char.attributes['level'] ?? 1)} • PVs{' '}
-                    {String(char.attributes['hp_current'] ?? 0)}
+                  <p className="text-[11px] text-text-muted truncate">
+                    {charSystem?.name || 'Sistema Próprio'}
                   </p>
                 </div>
               </div>
@@ -80,6 +91,66 @@ export const CharacterList: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Modal de Criação de Personagem com Seleção de Sistema */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="Criar Nova Ficha de Personagem"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="primary" onClick={handleCreate}>
+              Criar Personagem
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-secondary">
+            Selecione qual sistema de regras deseja utilizar para a nova ficha. Todos os
+            atributos, fórmulas e recursos serão gerados automaticamente a partir do preset.
+          </p>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider block">
+              Sistema de RPG
+            </label>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {systems.map((sys) => {
+                const isSelected = sys.id === selectedSystem;
+                return (
+                  <div
+                    key={sys.id}
+                    onClick={() => setSelectedSystem(sys.id)}
+                    className={`p-2.5 rounded-lg border cursor-pointer transition-all flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-bg-elevated border-accent shadow-subtle'
+                        : 'bg-bg-tertiary border-border-subtle hover:border-border-default'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-lg">{sys.icon || '📜'}</span>
+                      <div>
+                        <h4 className="text-xs font-semibold text-text-primary">{sys.name}</h4>
+                        <span className="text-[10px] text-text-muted line-clamp-1">
+                          {sys.description}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-primary text-accent border border-border-subtle">
+                      {sys.rollConvention.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

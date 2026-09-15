@@ -12,6 +12,7 @@ const CATEGORY_ICONS: Record<VaultCategory, React.ReactNode> = {
   item: <Shield className="w-3.5 h-3.5 text-status-info" />,
   rule: <Scroll className="w-3.5 h-3.5 text-text-muted" />,
   quest: <Sparkles className="w-3.5 h-3.5 text-accent-secondary" />,
+  session: <Sparkles className="w-3.5 h-3.5 text-status-success" />,
 };
 
 export const VaultList: React.FC = () => {

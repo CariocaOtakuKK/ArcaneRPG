@@ -1,11 +1,25 @@
 import React, { useState } from 'react';
 import { useCharacterStore } from '../store/characterStore';
 import { useAppStore } from '@/core/store/appStore';
+import { rollDice } from '@/core/dice/roller';
+import { db } from '@/core/db';
+import type { RollRecord } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
-import { Plus, Trash2, Shield, Heart, Sparkles, Backpack, Save, Activity } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Shield,
+  Heart,
+  Sparkles,
+  Backpack,
+  Save,
+  Activity,
+  Dices,
+  BookOpen,
+} from 'lucide-react';
 
 export const CharacterSheet: React.FC = () => {
   const characters = useCharacterStore((state) => state.characters);
@@ -19,6 +33,7 @@ export const CharacterSheet: React.FC = () => {
   const removeAbility = useCharacterStore((state) => state.removeAbility);
 
   const systems = useAppStore((state) => state.systems);
+  const addToast = useAppStore((state) => state.addToast);
 
   const [newItemName, setNewItemName] = useState('');
   const [newSkillName, setNewSkillName] = useState('');
@@ -34,6 +49,78 @@ export const CharacterSheet: React.FC = () => {
   }
 
   const system = systems.find((s) => s.id === character.systemId) || systems[0];
+
+  // Dynamic HP resource lookup based on System Definition
+  const hpResId = system.combat?.hpResource || 'hp';
+  const hpCurrentVal =
+    character.resources?.[hpResId]?.current ??
+    character.attributes[`${hpResId}_current`] ??
+    character.attributes[hpResId] ??
+    character.attributes['hp_current'] ??
+    20;
+  const hpMaxVal =
+    character.resources?.[hpResId]?.max ??
+    character.attributes[`${hpResId}_max`] ??
+    character.attributes['hp_max'] ??
+    20;
+
+  // Dynamic Defense stat lookup
+  const defenseKey =
+    system.attributes.find((a) => a.id === 'armor_class' || a.id === 'defesa')?.id || 'armor_class';
+  const defenseVal = character.attributes[defenseKey] ?? 10;
+
+  const handleRollAttribute = async (attrName: string, attrId: string) => {
+    try {
+      const val = Number(character.attributes[attrId]) || 0;
+      let expr = '1d20';
+
+      if (system.rollConvention === 'd100') {
+        expr = '1d100';
+      } else if (system.rollConvention === 'pool') {
+        expr = `${Math.max(1, val)}d10cs>=6`;
+      } else if (system.rollConvention === 'ladder') {
+        expr = `4dF + ${val}`;
+      } else {
+        // d20 systems: check if there's a mod
+        const modKey = `mod_${attrId}`;
+        const modVal = character.attributes[modKey] !== undefined
+          ? Number(character.attributes[modKey])
+          : val;
+        expr = modVal >= 0 ? `1d20 + ${modVal}` : `1d20 - ${Math.abs(modVal)}`;
+      }
+
+      const result = rollDice(expr, {
+        label: `Teste de ${attrName}`,
+        characterId: character.id,
+        systemId: system.id,
+      });
+
+      const detailStr = result.dice
+        .map((d) => `[${d.rolls.map((r) => r.rolled).join(', ')}]`)
+        .join(' ');
+
+      const record: RollRecord = {
+        id: result.id,
+        characterId: character.id,
+        characterName: character.name,
+        expression: result.expression,
+        total: result.total,
+        detail: detailStr,
+        label: result.label,
+        createdAt: result.createdAt,
+      };
+
+      await db.rolls.put(record);
+
+      addToast({
+        type: 'success',
+        title: `Rolagem: ${attrName}`,
+        message: `${result.expression} ➔ Total: ${result.total}`,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +161,7 @@ export const CharacterSheet: React.FC = () => {
       <Card className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4 border-l-accent">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center text-accent text-2xl font-bold shadow-glow">
-            {character.name.charAt(0).toUpperCase()}
+            {system.icon || character.name.charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -92,9 +179,9 @@ export const CharacterSheet: React.FC = () => {
           <div className="flex items-center gap-2 bg-bg-tertiary px-3 py-1.5 rounded-lg border border-border-subtle">
             <Heart className="w-4 h-4 text-status-danger" />
             <div>
-              <span className="text-[10px] text-text-muted block leading-none">PVs</span>
+              <span className="text-[10px] text-text-muted block leading-none">Vida / PV</span>
               <span className="text-sm font-bold font-mono text-text-primary">
-                {String(character.attributes['hp_current'] ?? 0)} / {String(character.attributes['hp_max'] ?? 0)}
+                {String(hpCurrentVal)} / {String(hpMaxVal)}
               </span>
             </div>
           </div>
@@ -102,9 +189,11 @@ export const CharacterSheet: React.FC = () => {
           <div className="flex items-center gap-2 bg-bg-tertiary px-3 py-1.5 rounded-lg border border-border-subtle">
             <Shield className="w-4 h-4 text-status-info" />
             <div>
-              <span className="text-[10px] text-text-muted block leading-none">CA</span>
+              <span className="text-[10px] text-text-muted block leading-none">
+                {system.combat?.defenseStat?.name || 'Defesa'}
+              </span>
               <span className="text-sm font-bold font-mono text-text-primary">
-                {String(character.attributes['armor_class'] ?? 10)}
+                {String(defenseVal)}
               </span>
             </div>
           </div>
@@ -122,7 +211,7 @@ export const CharacterSheet: React.FC = () => {
 
       {/* Main Grid: Attributes & Progression */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Column 1 & 2: Dynamic System Attributes */}
+        {/* Column 1 & 2: Dynamic System Attributes & Skills */}
         <div className="lg:col-span-2 space-y-6">
           {Object.entries(categories).map(([catName, attrs]) => (
             <Card key={catName} className="space-y-4">
@@ -150,9 +239,18 @@ export const CharacterSheet: React.FC = () => {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-1 mb-2">
-                        <span className="text-xs font-medium text-text-secondary leading-tight">
-                          {attrDef.name}
-                        </span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <button
+                            onClick={() => handleRollAttribute(attrDef.name, attrDef.id)}
+                            className="text-text-muted hover:text-accent transition-colors"
+                            title={`Rolar teste de ${attrDef.name}`}
+                          >
+                            <Dices className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-xs font-medium text-text-secondary leading-tight truncate">
+                            {attrDef.name}
+                          </span>
+                        </div>
                         {isHook ? (
                           <span
                             title="Calculado dinamicamente via Functional JS Hook em Sandbox"
@@ -185,10 +283,13 @@ export const CharacterSheet: React.FC = () => {
                         />
                       ) : (
                         <input
-                          type={attrDef.type === 'number' ? 'number' : 'text'}
+                          type={attrDef.type === 'number' || attrDef.type === 'percent' ? 'number' : 'text'}
                           value={String(currentValue)}
                           onChange={(e) => {
-                            const val = attrDef.type === 'number' ? Number(e.target.value) : e.target.value;
+                            const val =
+                              attrDef.type === 'number' || attrDef.type === 'percent'
+                                ? Number(e.target.value)
+                                : e.target.value;
                             updateAttribute(attrDef.id, val);
                           }}
                           className="bg-bg-elevated border border-border-default rounded px-2 py-1 text-sm font-semibold font-mono text-text-primary focus:outline-none focus:border-border-focus"
@@ -206,6 +307,47 @@ export const CharacterSheet: React.FC = () => {
               </div>
             </Card>
           ))}
+
+          {/* Perícias do Sistema (Se existirem) */}
+          {system.skills && system.skills.length > 0 && (
+            <Card className="space-y-4">
+              <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-primary flex items-center gap-2">
+                  <BookOpen className="w-3.5 h-3.5 text-accent" />
+                  Perícias de {system.name} ({system.skills.length})
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {system.skills.map((skill) => {
+                  return (
+                    <button
+                      key={skill.id}
+                      onClick={() =>
+                        handleRollAttribute(
+                          skill.name,
+                          skill.baseAttribute || 'level'
+                        )
+                      }
+                      className="p-2 rounded bg-bg-tertiary hover:bg-bg-elevated border border-border-subtle hover:border-accent/40 text-left transition-all flex items-center justify-between group"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium text-text-primary block truncate group-hover:text-accent">
+                          {skill.name}
+                        </span>
+                        {skill.baseAttribute && (
+                          <span className="text-[10px] text-text-muted uppercase">
+                            {skill.baseAttribute}
+                          </span>
+                        )}
+                      </div>
+                      <Dices className="w-3.5 h-3.5 text-text-muted group-hover:text-accent transition-colors flex-shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
 
           {/* Habilidades & Magias */}
           <Card className="space-y-4">
@@ -341,7 +483,6 @@ export const CharacterSheet: React.FC = () => {
               value={character.notes}
               onChange={(e) => {
                 updateAttribute('notes_temp', e.target.value);
-                // Directly mutate active character notes
                 character.notes = e.target.value;
               }}
               placeholder="Anotações de campanha, objetivos, aliados..."
